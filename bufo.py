@@ -1,5 +1,7 @@
 # bot.py
 import os
+import random
+from collections import defaultdict
 
 import discord
 from dotenv import load_dotenv
@@ -16,14 +18,12 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 
 client = discord.Client(intents=intents)
 
-macros = {}
+macros = defaultdict(list)
 with open("macros.csv", "r") as f:
     f.readline()
     for line in f:
-        line = line.strip()
-        if line:
-            macro, say = line.split(",")
-            macros[macro] = say
+        line = line.split(",")
+        macros[line[0]].append(line[1])
 
 
 @client.event
@@ -36,9 +36,13 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+    words = message.content.lower().split()
+    candidates = []
     for macro in macros:
-        if macro in message.content:
-            await message.channel.send(macros[macro])
+        if macro in words:
+            candidates += macros[macro]
+    if candidates:
+        await message.channel.send(random.choice(candidates))
 
     if message.content.startswith("$bufo"):
         if message.author.voice:
