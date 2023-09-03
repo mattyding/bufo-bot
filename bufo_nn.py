@@ -20,9 +20,16 @@ class BufoNN(nn.Module):
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
 
+    # when program stops, save weights
+    def __del__(self):
+        self.save_weights()
+
     def load_corpus(self):
         corpus_path = "data/corpus.txt"
-        return open(corpus_path, "r").read().splitlines()
+        corpus = open(corpus_path, "r").read().splitlines()
+        # add STOP token
+        corpus.append("<STOP>")
+        return corpus
 
     def load_weights(self):
         try:
@@ -44,62 +51,87 @@ class BufoNN(nn.Module):
         output = self.out(output)
         return output, hidden
 
-    def train(self, sentence_pairs):
+    def train(self, sentence_pairs, num_epochs):
         self.refresh_corpus()
-        for input_sentence, target_sentence in sentence_pairs:
-            self.optimizer.zero_grad()
+        for epoch in range(num_epochs):
+            for input_sentence, target_sentence in sentence_pairs:
+                self.optimizer.zero_grad()
 
-            # # tokenize input and target sentences
-            # input_tokens = word_tokenize(input_sentence)
-            # target_tokens = word_tokenize(target_sentence)
-            input_tokens = input_sentence.split()
-            target_tokens = target_sentence.split()
+                # # tokenize input and target sentences
+                # input_tokens = word_tokenize(input_sentence)
+                # target_tokens = word_tokenize(target_sentence)
+                input_tokens = input_sentence.split()
+                target_tokens = target_sentence.split()
+                # append stop token to target sentence
+                input_tokens.append("<STOP>")
+                target_tokens.append("<STOP>")
 
-            # convert tokens to indices
-            input_tensor = [self.corpus.index(token) for token in input_tokens]
-            target_tensor = [self.corpus.index(token) for token in target_tokens]
+                # convert tokens to indices
+                input_tensor = [self.corpus.index(token) for token in input_tokens]
+                target_tensor = [self.corpus.index(token) for token in target_tokens]
 
-            # pad to be same length
-            max_len = max(len(input_tensor), len(target_tensor))
-            input_tensor += [0] * (max_len - len(input_tensor))
-            target_tensor += [0] * (max_len - len(target_tensor))
+                # pad to be same length
+                max_len = max(len(input_tensor), len(target_tensor))
+                input_tensor += [0] * (max_len - len(input_tensor))
+                target_tensor += [0] * (max_len - len(target_tensor))
 
-            # convert to tensors
-            input_tensor = torch.tensor(input_tensor)
-            target_tensor = torch.tensor(target_tensor)
+                # convert to tensors
+                input_tensor = torch.tensor(input_tensor)
+                target_tensor = torch.tensor(target_tensor)
 
-            batch_size = 1  # Since we're processing one example at a time
-            input_tensor = input_tensor.unsqueeze(0).expand(
-                batch_size, -1
-            )  # Expand the input tensor to match batch size
-            target_tensor = target_tensor.unsqueeze(0).expand(
-                batch_size, -1
-            )  # Expand the target tensor
+                batch_size = 1  # Since we're processing one example at a time
+                input_tensor = input_tensor.unsqueeze(0).expand(
+                    batch_size, -1
+                )  # Expand the input tensor to match batch size
+                target_tensor = target_tensor.unsqueeze(0).expand(
+                    batch_size, -1
+                )  # Expand the target tensor
 
-            output, _ = self.forward(input_tensor)
-            loss = self.criterion(output.squeeze(0), target_tensor.squeeze(0))
-            loss.backward()
-            self.optimizer.step()
+                output, _ = self.forward(input_tensor)
+                loss = self.criterion(output.squeeze(0), target_tensor.squeeze(0))
+                # add a strong penalty for short (1-2 word responses)
+                loss *= 100 * (len(target_tokens) < 4)
+                loss.backward()
+                self.optimizer.step()
 
     def predict(self, input_sentence):
+        response = []
+        # feed in words one at a time from input_sentence until STOP token is generated
+        # tokenize input sentence
         input_tokens = input_sentence.split()
-        input_tensor = torch.tensor(
-            [self.corpus.index(token) for token in input_tokens]
-        )
-        output, _ = self.forward(
-            input_tensor.unsqueeze(0)
-        )  # Unsqueeze to add batch dimension
-        predicted_indices = output.argmax(dim=2).squeeze().tolist()
-        if type(predicted_indices) == int:  # only one word predicted
-            predicted_indices = [predicted_indices]
-        predicted_tokens = [self.corpus[idx] for idx in predicted_indices]
-        predicted_sentence = " ".join(predicted_tokens)
-        return predicted_sentence
+        # append stop token to input sentence
+        input_tokens.append("<STOP>")
+        # convert tokens to indices
+        input_tensor = [self.corpus.index(token) for token in input_tokens]
+        # convert to tensors
+        input_tensor = torch.tensor(input_tensor)
+        batch_size = 1  # Since we're processing one example at a time
+        input_tensor = input_tensor.unsqueeze(0).expand(batch_size, -1)
+        # feed in words one at a time
+        # print(input_tensor)
+        for i in range(len(input_tensor)):
+            output, _ = self.forward(input_tensor[i])
+            topv, topi = output.topk(1)
+            topi = topi[0][0]
+            # convert index to word
+            if topi == self.corpus.index("<STOP>"):
+                break
+            else:
+                response.append(self.corpus[topi])
+        return " ".join(response)
 
 
 if __name__ == "__main__":
     warning = "WARNING: You are running a testing script which will overwrite the corpus. Proceed? (y/n) "
     if input(warning) == "y":
+        # make a backup copy of the corpus at data/corpus_copy.txt
+        with open("data/corpus.txt", "r") as f:
+            corpus = f.read()
+        with open("data/corpus_copy.txt", "w") as f:
+            f.write(corpus)
+        print(
+            "Well okay, but I copied the corpus to data/corpus_copy.txt just in case."
+        )
         with open("data/corpus.txt", "w") as f:
             f.write("hello\nworld\n")
         model = BufoNN()

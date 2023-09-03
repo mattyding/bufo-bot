@@ -43,6 +43,9 @@ def sanitize(message):
 
 def log_msg(message, words, prev_msg):
     message = sanitize(message.content)
+    if "bufo" in message:
+        # don't log commands
+        return
     for word in message.split():
         if word not in words:
             words.add(word)
