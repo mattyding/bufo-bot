@@ -1,5 +1,4 @@
 import os
-import random
 
 import discord
 from discord.ext import commands
@@ -9,16 +8,22 @@ from commands import *
 from bufo_nn import *
 from bufo_nn import BufoNN
 
+init()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-client = init()
+intents = load_intents()
+client = discord.Client(intents=intents)
 macros = load_macros()
-messages = []
-message_generator = BufoNN()
+words = load_words()
+
+# store state of previous message for training
+prev_msg = [""]
+model = [None]
 
 
 @client.event
 async def on_ready():
+    model[0] = BufoNN()
     print(f"{client.user} has connected to Discord!")
 
 
@@ -27,11 +32,9 @@ async def on_message(message):
     if message.author == client.user:
         return
     # sanitize message content
-    message.content = sanitize(message.content)
+    log_msg(message, words, prev_msg)
 
-    messages.append(message.content)
-
-    await macro_cmd(message)  # check for macros
+    # await macro_cmd(message, macros)  # check for macros
 
     if message.content.startswith("$list macros"):
         await message.channel.send("Available macros: " + ", ".join(macros.keys()))
@@ -39,15 +42,16 @@ async def on_message(message):
         await bufo_cmd(message)
     if message.content.startswith("$bufo go away"):
         await message.guild.voice_client.disconnect()
-
-    # Train the neural network (you need to implement this method)
-    input_text = ...  # Get the input text from the message
-    output_text = ...  # Get the expected output text from the message
-    message_generator.train(input_text, output_text)
-
-    # Generate a response and send it
-    response = message_generator.generate_response(input_text)
-    await message.channel.send(response)
+    if message.content.startswith("$bufo train"):
+        model[0] = BufoNN()
+        train_cmd(model[0])
+        await message.channel.send(
+            "Training complete! Bufo AI is ready to take over the world :frog:"
+        )
+    if message.content.startswith("$bufo infer"):
+        # Generate a response and send it
+        response = model[0].predict(sanitize(message.content.split("$bufo infer ")[1]))
+        await message.channel.send(response)
 
 
 # Create a bot instance
