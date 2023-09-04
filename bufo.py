@@ -16,14 +16,19 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 intents = load_intents()
 client = discord.Client(intents=intents)
 macros = load_macros()
-words = load_words()
+corpus = load_corpus()
 
 # store state of previous message for training
 prev_msg = [""]
 model = [None]
 
 
-# Define a custom function to handle Ctrl+C
+@client.event
+async def on_ready():
+    model[0] = BufoNN()
+    print(f"{client.user} has connected to Discord!")
+
+
 def handle_ctrl_c(signal, frame):
     # trigger model[0]__del__() to save weights
     model[0] = None
@@ -35,16 +40,13 @@ signal.signal(signal.SIGINT, handle_ctrl_c)
 
 
 @client.event
-async def on_ready():
-    print(f"{client.user} has connected to Discord!")
-
-
-@client.event
 async def on_message(message):
-    if message.author == client.user:
+    # discard all messages from bots
+    if message.author.bot:
         return
+
     # sanitize message content
-    log_msg(message, words, prev_msg)
+    new_words = log_msg(message, corpus, prev_msg)
 
     # await macro_cmd(message, macros)  # check for macros
 
@@ -65,16 +67,10 @@ async def on_message(message):
         await message.channel.send(
             "Training complete! Bufo AI is ready to take over the world :frog:"
         )
-    # if message.content.startswith("$bufo infer"):
-    #     # Generate a response and send it
-    #     response = model[0].predict(sanitize(message.content.split("$bufo infer ")[1]))
-    #     await message.channel.send(response)
-    for word in message.content.split():
-        if word not in words:
-            return
-    response = model[0].predict(sanitize(message.content))
-    if response:
-        await message.channel.send(response)
+    if not new_words:
+        response = model[0].predict(sanitize(message.content))
+        if response:
+            await message.channel.send(response)
 
 
 # Create a bot instance

@@ -3,10 +3,11 @@ import torch.nn as nn
 import torch.optim as optim
 
 from nltk.tokenize import word_tokenize
+from util import remove_repeating_pattern
 
 
 class BufoNN(nn.Module):
-    # basic seq2seq architecture
+    # transformer model with attention heads
     def __init__(self):
         super(BufoNN, self).__init__()
         self.corpus = self.load_corpus()
@@ -54,6 +55,7 @@ class BufoNN(nn.Module):
     def train(self, sentence_pairs, num_epochs):
         self.refresh_corpus()
         for epoch in range(num_epochs):
+            print(f"Epoch {epoch + 1}/{num_epochs}")
             for input_sentence, target_sentence in sentence_pairs:
                 self.optimizer.zero_grad()
 
@@ -72,8 +74,12 @@ class BufoNN(nn.Module):
 
                 # pad to be same length
                 max_len = max(len(input_tensor), len(target_tensor))
-                input_tensor += [0] * (max_len - len(input_tensor))
-                target_tensor += [0] * (max_len - len(target_tensor))
+                input_tensor += [self.corpus.index("<STOP>")] * (
+                    max_len - len(input_tensor)
+                )
+                target_tensor += [self.corpus.index("<STOP>")] * (
+                    max_len - len(target_tensor)
+                )
 
                 # convert to tensors
                 input_tensor = torch.tensor(input_tensor)
@@ -89,8 +95,7 @@ class BufoNN(nn.Module):
 
                 output, _ = self.forward(input_tensor)
                 loss = self.criterion(output.squeeze(0), target_tensor.squeeze(0))
-                # add a strong penalty for short (1-2 word responses)
-                loss *= 100 * (len(target_tokens) < 4)
+                # print(loss)
                 loss.backward()
                 self.optimizer.step()
 
@@ -107,18 +112,24 @@ class BufoNN(nn.Module):
         input_tensor = torch.tensor(input_tensor)
         batch_size = 1  # Since we're processing one example at a time
         input_tensor = input_tensor.unsqueeze(0).expand(batch_size, -1)
-        # feed in words one at a time
-        # print(input_tensor)
-        for i in range(len(input_tensor)):
-            output, _ = self.forward(input_tensor[i])
+        # feed in entire input sentence
+        output, _ = self.forward(input_tensor)
+        topv, topi = output.topk(1)
+        topi = topi[0][0]
+        response.append(topi)
+        # repeatedly feed in response until STOP token is generated
+        while topi != self.corpus.index("<STOP>") and len(response) < 20:
+            output, _ = self.forward(torch.tensor([[topi]]))
             topv, topi = output.topk(1)
             topi = topi[0][0]
-            # convert index to word
-            if topi == self.corpus.index("<STOP>"):
-                break
-            else:
-                response.append(self.corpus[topi])
-        return " ".join(response)
+            response.append(topi)
+        # if generated stop token
+        if topi == self.corpus.index("<STOP>"):
+            response.pop()
+
+        print(" ".join([self.corpus[index] for index in response]))
+        response = remove_repeating_pattern(response)
+        return " ".join([self.corpus[index] for index in response])
 
 
 if __name__ == "__main__":
