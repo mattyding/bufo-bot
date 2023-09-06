@@ -31,7 +31,7 @@ async def on_ready():
 
 def handle_ctrl_c(signal, frame):
     # trigger model[0]__del__() to save weights
-    model[0] = None
+    # model[0] = None
     sys.exit(0)
 
 
@@ -63,6 +63,7 @@ async def on_message(message):
             else 1
         )
         model[0] = BufoNN()
+        copy_corpus()
         train_cmd(model[0], epochs=epochs)
         await message.channel.send(
             "Training complete! Bufo AI is ready to take over the world :frog:"

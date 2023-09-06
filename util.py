@@ -4,6 +4,7 @@ from collections import defaultdict
 from dotenv import load_dotenv
 
 CORPUS_FILE = "data/corpus.txt"
+APPEND_FILE = "data/corpus-append.txt"  # stores new words. gets copied upon training
 
 
 def init():
@@ -33,7 +34,7 @@ def load_corpus():
 
 
 def write_word(word):
-    with open(CORPUS_FILE, "a") as f:
+    with open("data/corpus-append.txt", "a") as f:
         f.write(word + "\n")
 
 
@@ -49,7 +50,7 @@ def log_msg(message, words, prev_msg):
         return True
     for word in message.split():
         if word not in words:
-            words.add(word)
+            # words.add(word)
             write_word(word)
             new_vocab = True
     input_text = prev_msg[0]
@@ -60,6 +61,19 @@ def log_msg(message, words, prev_msg):
             f.write(f"{input_text}\t{output_text}\n")
     prev_msg[0] = output_text
     return new_vocab
+
+
+def copy_corpus():
+    # copy corpus-append to corpus
+    with open("data/corpus-append.txt", "r") as f:
+        lines = f.readlines()
+    # dedup
+    lines = list(set(lines))
+    with open("data/corpus.txt", "a") as f:
+        f.writelines(lines)
+    # clear out corpus-append
+    with open("data/corpus-append.txt", "w") as f:
+        f.write("")
 
 
 def remove_repeating_pattern(arr):

@@ -29,6 +29,10 @@ def train_cmd(model, epochs):
         lines = f.readlines()
     training_pairs = []
     for line in lines:
-        input_text, output_text = line.split("\t")
+        try:
+            input_text, output_text = line.split("\t")
+        except ValueError:
+            print("Bad line: " + line)
+            continue
         training_pairs.append((input_text, output_text))
     model.train(training_pairs, num_epochs=epochs)

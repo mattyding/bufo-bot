@@ -119,7 +119,8 @@ class BufoNN(nn.Module):
         response.append(topi)
         # repeatedly feed in response until STOP token is generated
         while topi != self.corpus.index("<STOP>") and len(response) < 20:
-            output, _ = self.forward(torch.tensor([[topi]]))
+            # feed the entire response so far
+            output, _ = self.forward(torch.tensor(response).unsqueeze(0))
             topv, topi = output.topk(1)
             topi = topi[0][0]
             response.append(topi)
