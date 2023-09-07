@@ -2,15 +2,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from nltk.tokenize import word_tokenize
-from util import remove_repeating_pattern
+import utils as utils
 
 
 class BufoNN(nn.Module):
     # transformer model with attention heads
     def __init__(self):
         super(BufoNN, self).__init__()
-        self.corpus = self.load_corpus()
+        self.load_corpus()
         input_size = len(self.corpus)
         hidden_size = 256
         output_size = len(self.corpus)
@@ -25,13 +24,6 @@ class BufoNN(nn.Module):
     def __del__(self):
         self.save_weights()
 
-    def load_corpus(self):
-        corpus_path = "data/corpus.txt"
-        corpus = open(corpus_path, "r").read().splitlines()
-        # add STOP token
-        corpus.append("<STOP>")
-        return corpus
-
     def load_weights(self):
         try:
             self.load_state_dict(torch.load("data/weights.pt"))
@@ -43,8 +35,10 @@ class BufoNN(nn.Module):
     def save_weights(self):
         torch.save(self.state_dict(), "data/weights.pt")
 
-    def refresh_corpus(self):
-        self.corpus = self.load_corpus()
+    def load_corpus(self):
+        self.corpus = list(utils.load_corpus())
+        # add STOP token
+        self.corpus.append("<STOP>")
 
     def forward(self, input_seq):
         embedded = self.embedding(input_seq)
@@ -53,7 +47,7 @@ class BufoNN(nn.Module):
         return output, hidden
 
     def train(self, sentence_pairs, num_epochs):
-        self.refresh_corpus()
+        self.load_corpus()
         for epoch in range(num_epochs):
             print(f"Epoch {epoch + 1}/{num_epochs}")
             for input_sentence, target_sentence in sentence_pairs:
@@ -100,6 +94,10 @@ class BufoNN(nn.Module):
                 self.optimizer.step()
 
     def predict(self, input_sentence):
+        for word in input_sentence.split():
+            if word not in self.corpus:
+                return None
+
         response = []
         # feed in words one at a time from input_sentence until STOP token is generated
         # tokenize input sentence
@@ -128,8 +126,8 @@ class BufoNN(nn.Module):
         if topi == self.corpus.index("<STOP>"):
             response.pop()
 
-        print(" ".join([self.corpus[index] for index in response]))
-        response = remove_repeating_pattern(response)
+        # print(" ".join([self.corpus[index] for index in response]))
+        response = utils.remove_repeating_pattern(response)
         return " ".join([self.corpus[index] for index in response])
 
 

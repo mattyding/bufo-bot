@@ -1,82 +1,68 @@
+import logging
 import os
-import signal
 import sys
 
-import discord
 from discord.ext import commands
+from dotenv import load_dotenv
 
-from util import *
-from commands import *
-from bufo_nn import *
+import commands as bufo_cmds
+import utils as utils
 from bufo_nn import BufoNN
 
-init()
-TOKEN = os.getenv("DISCORD_TOKEN")
 
-intents = load_intents()
-client = discord.Client(intents=intents)
-macros = load_macros()
-corpus = load_corpus()
+class Bot:
+    def __init__(self):
+        load_dotenv()
+        self.TOKEN = os.getenv("DISCORD_TOKEN")
+        self.corpus = utils.load_corpus()
+        self.append_corp = set()
 
-# store state of previous message for training
-prev_msg = [""]
-model = [None]
+        # store state of previous message for training
+        self.prev_msg = ""
+        self.model = BufoNN()
 
+    def handle_ctrl_c(self, signal, frame):
+        # trigger model.__del__() to save weights
+        sys.exit(0)
 
-@client.event
-async def on_ready():
-    model[0] = BufoNN()
-    print(f"{client.user} has connected to Discord!")
+    async def on_ready(self):
+        self.model = BufoNN()
+        logging.info(f"Bufo buddy has connected to Discord!")
 
+    async def on_message(self, message):
+        # discard all messages from bots
+        if message.author.bot:
+            return
+        if message.content.lower().startswith("$bufo"):
+            cmd, args = message.content.split()[1], message.content.split()[2:]
+            await bufo_cmds.parse_cmd(cmd, args, message, self)
+        else:
+            # don't log commands
+            self.log_msg(message)
+            response = self.model.predict(message.content)
+            if response:
+                await message.channel.send(response)
 
-def handle_ctrl_c(signal, frame):
-    # trigger model[0]__del__() to save weights
-    # model[0] = None
-    sys.exit(0)
+    def log_msg(self, message):
+        sanitized_msg = utils.sanitize(message.content)
+        for word in sanitized_msg.split():
+            if word not in self.corpus and word not in self.append_corp:
+                utils.write_word_to_append_file(word)
+        if self.prev_msg != "":
+            utils.write_training_example(self.prev_msg, sanitized_msg)
+        self.prev_msg = sanitized_msg
 
-
-# Register the Ctrl+C signal handler
-signal.signal(signal.SIGINT, handle_ctrl_c)
-
-
-@client.event
-async def on_message(message):
-    # discard all messages from bots
-    if message.author.bot:
-        return
-
-    # sanitize message content
-    new_words = log_msg(message, corpus, prev_msg)
-
-    # await macro_cmd(message, macros)  # check for macros
-
-    if message.content.startswith("$list macros"):
-        await message.channel.send("Available macros: " + ", ".join(macros.keys()))
-    if message.content.startswith("$bufo"):
-        await bufo_cmd(message)
-    if message.content.startswith("$bufo go away"):
-        await message.guild.voice_client.disconnect()
-    if message.content.startswith("$bufo train"):
-        epochs = (
-            int(message.content.split("--epochs=")[1])
-            if "--epochs" in message.content
-            else 1
-        )
-        model[0] = BufoNN()
-        copy_corpus()
-        train_cmd(model[0], epochs=epochs)
-        await message.channel.send(
-            "Training complete! Bufo AI is ready to take over the world :frog:"
-        )
-    if not new_words:
-        response = model[0].predict(sanitize(message.content))
-        if response:
-            await message.channel.send(response)
+    def run(self):
+        try:
+            bot = commands.Bot(command_prefix="!", intents=utils.load_intents())
+            bot.add_listener(self.on_ready)
+            bot.add_listener(self.on_message)
+            bot.run(self.TOKEN)
+        except KeyboardInterrupt:
+            pass
 
 
-# Create a bot instance
-try:
-    bot = commands.Bot(command_prefix="!", intents=intents)
-    client.run(TOKEN)
-except KeyboardInterrupt:
-    pass
+if __name__ == "__main__":
+    utils.setup_logging()
+    bot = Bot()
+    bot.run()
