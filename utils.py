@@ -2,11 +2,15 @@
 import discord
 import logging
 
+from argparser import BufoArgParser
+import commands as bufo_cmds
+
 CORPUS_FILE = "data/corpus.txt"
 APPEND_FILE = "data/corpus-append.txt"  # stores new words. gets copied upon training
 DATASET_FILE = "data/dataset.txt"
 
 
+# INIT FUNCTIONS
 def setup_logging():
     logging.basicConfig(
         level=logging.INFO,
@@ -22,7 +26,25 @@ def load_intents():
     intents.message_content = True
     return intents
 
+def init_parser():
+    parser = BufoArgParser()
+    parser.add_cmd("connect")
+    parser.add_cmd("disconnect")
+    parser.add_cmd("go away", alias_for="disconnect")
+    parser.add_cmd("train")
 
+    parser.add_arg("train", "model", type=str, required=False, default="seq2seq")
+    parser.add_arg("train", "epochs", type=int, required=False, default=7)
+    parser.add_arg("train", "batch_size", type=int, required=False, default=64)
+    parser.add_arg("train", "lr", type=float, required=False, default=0.001)
+
+    parser.map_cmd_to_fn("connect", bufo_cmds.bufo_connect)
+    parser.map_cmd_to_fn("disconnect", bufo_cmds.bufo_disconnect)
+    parser.map_cmd_to_fn("train", bufo_cmds.bufo_train_model)
+    return parser
+
+
+# I/O FUNCTIONS
 def load_corpus():
     return set(open(CORPUS_FILE, "r").read().splitlines())
 
@@ -37,10 +59,6 @@ def write_training_example(input, output):
         f.write(input + "\t" + output + "\n")
 
 
-def sanitize(message):
-    return "".join([c for c in message if c.isalpha() or c in " :"]).lower()
-
-
 def copy_corpus():
     # copy corpus-append to corpus
     with open(APPEND_FILE, "r") as f:
@@ -53,6 +71,10 @@ def copy_corpus():
     with open(APPEND_FILE, "w") as f:
         f.write("")
 
+
+# STRING PROCESSING FUNCTIONS
+def sanitize(message):
+    return "".join([c for c in message if c.isalpha() or c in " :"]).lower()
 
 def remove_repeating_pattern(arr):
     for start in range(0, len(arr) // 2):

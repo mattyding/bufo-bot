@@ -3,16 +3,6 @@ from utils import DATASET_FILE
 
 import utils as utils
 
-
-async def parse_cmd(cmd, args, message, bot):
-    if cmd == "join":
-        await bufo_connect(message)
-    if cmd == "goaway":
-        await bufo_disconnect(message)
-    if cmd == "train":
-        await bufo_train_model(bot, args, message)
-
-
 async def bufo_connect(message):
     if message.author.voice:
         voice_channel = message.author.voice.channel
@@ -27,7 +17,7 @@ async def bufo_disconnect(message):
         await message.guild.voice_client.disconnect()
 
 
-async def bufo_train_model(bot, args, message):
+async def bufo_train_model(model, epochs, batch_size, lr, message):
     with open(DATASET_FILE, "r") as f:
         lines = f.readlines()
     training_pairs = []
@@ -39,9 +29,9 @@ async def bufo_train_model(bot, args, message):
             continue
         training_pairs.append((input_text, output_text))
     utils.copy_corpus()
-    bot.model.train(training_pairs, num_epochs=7)
-    bot.corpus = utils.load_corpus()
-    bot.append_corp = set()
+    model.model.train(training_pairs, num_epochs=epochs, batch_size=batch_size, lr=lr)
+    model.corpus = utils.load_corpus()
+    model.append_corp = set()
     await message.channel.send(
         "Training complete! Bufo AI is ready to take over the world :frog:"
     )

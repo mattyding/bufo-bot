@@ -5,10 +5,9 @@ import torch.optim as optim
 import utils as utils
 
 
-class BufoNN(nn.Module):
-    # transformer model with attention heads
+class BufoSeq2Seq(nn.Module):
     def __init__(self):
-        super(BufoNN, self).__init__()
+        super(BufoSeq2Seq, self).__init__()
         self.load_corpus()
         input_size = len(self.corpus)
         hidden_size = 256
@@ -46,7 +45,9 @@ class BufoNN(nn.Module):
         output = self.out(output)
         return output, hidden
 
-    def train(self, sentence_pairs, num_epochs):
+    def train(self, sentence_pairs, num_epochs, batch_size, lr):
+        del batch_size  # unused
+        del lr  # unused
         self.load_corpus()
         for epoch in range(num_epochs):
             print(f"Epoch {epoch + 1}/{num_epochs}")
