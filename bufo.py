@@ -44,7 +44,7 @@ class Bot:
                 await message.channel.send(response)
 
     async def process_command(self, message):
-        cmd, args = self.parse_args(message.content)
+        cmd, args = self.parser.parse_args(message.content)
         if cmd in ["connect", "disconnect"]:
             args.update({"message": message})
         elif cmd == "train":
