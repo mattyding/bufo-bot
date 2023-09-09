@@ -3,6 +3,7 @@ from utils import DATASET_FILE
 
 import utils as utils
 
+
 async def bufo_connect(message):
     if message.author.voice:
         voice_channel = message.author.voice.channel
@@ -17,7 +18,7 @@ async def bufo_disconnect(message):
         await message.guild.voice_client.disconnect()
 
 
-async def bufo_train_model(model, epochs, batch_size, lr, message):
+async def bufo_train_model(model, epochs, batch_size, lr):
     with open(DATASET_FILE, "r") as f:
         lines = f.readlines()
     training_pairs = []
@@ -28,10 +29,7 @@ async def bufo_train_model(model, epochs, batch_size, lr, message):
             print("Bad line: " + line)
             continue
         training_pairs.append((input_text, output_text))
-    utils.copy_corpus()
-    model.model.train(training_pairs, num_epochs=epochs, batch_size=batch_size, lr=lr)
-    model.corpus = utils.load_corpus()
-    model.append_corp = set()
-    await message.channel.send(
+    model.train(training_pairs, num_epochs=epochs, batch_size=batch_size, lr=lr)
+    raise ValueError(  # hacky way of sending msg to channel
         "Training complete! Bufo AI is ready to take over the world :frog:"
     )

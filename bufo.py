@@ -59,6 +59,7 @@ class Bot:
         for word in sanitized_msg.split():
             if word not in self.corpus and word not in self.append_corp:
                 utils.write_word_to_append_file(word)
+                self.append_corp.add(word)
         if self.prev_msg != "":
             utils.write_training_example(self.prev_msg, sanitized_msg)
         self.prev_msg = sanitized_msg

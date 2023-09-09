@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from tqdm import tqdm
 
 import utils as utils
 
@@ -8,13 +9,7 @@ import utils as utils
 class BufoSeq2Seq(nn.Module):
     def __init__(self):
         super(BufoSeq2Seq, self).__init__()
-        self.load_corpus()
-        input_size = len(self.corpus)
-        hidden_size = 256
-        output_size = len(self.corpus)
-        self.embedding = nn.Embedding(input_size, hidden_size)
-        self.gru = nn.GRU(hidden_size, hidden_size)
-        self.out = nn.Linear(hidden_size, output_size)
+        self.init_model()
         self.load_weights()
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
@@ -34,10 +29,23 @@ class BufoSeq2Seq(nn.Module):
     def save_weights(self):
         torch.save(self.state_dict(), "data/weights.pt")
 
+    def init_model(self):
+        self.load_corpus()
+        input_size = len(self.corpus)
+        hidden_size = 256
+        output_size = len(self.corpus)
+        self.embedding = nn.Embedding(input_size, hidden_size)
+        self.gru = nn.GRU(hidden_size, hidden_size)
+        self.out = nn.Linear(hidden_size, output_size)
+
     def load_corpus(self):
         self.corpus = list(utils.load_corpus())
         # add STOP token
         self.corpus.append("<STOP>")
+
+    def update_corpus_for_training(self):
+        utils.copy_corpus()
+        self.init_model()
 
     def forward(self, input_seq):
         embedded = self.embedding(input_seq)
@@ -48,9 +56,8 @@ class BufoSeq2Seq(nn.Module):
     def train(self, sentence_pairs, num_epochs, batch_size, lr):
         del batch_size  # unused
         del lr  # unused
-        self.load_corpus()
-        for epoch in range(num_epochs):
-            print(f"Epoch {epoch + 1}/{num_epochs}")
+        self.update_corpus_for_training()
+        for epoch in tqdm(range(num_epochs)):
             for input_sentence, target_sentence in sentence_pairs:
                 self.optimizer.zero_grad()
 
@@ -145,7 +152,7 @@ if __name__ == "__main__":
         )
         with open("data/corpus.txt", "w") as f:
             f.write("hello\nworld\n")
-        model = BufoNN()
+        model = BufoSeq2Seq()
         model.train([("hello", "world")])
         model.save_weights()
         print(model.predict("hello"))
