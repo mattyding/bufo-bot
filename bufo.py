@@ -17,6 +17,7 @@ class Bot:
         self.parser = utils.init_parser()
         self.corpus = utils.load_corpus()
         self.append_corp = set()
+        self.enable_responses = True
 
         # store state of previous message for training
         self.prev_msg = ""
@@ -40,12 +41,14 @@ class Bot:
             # don't log commands
             self.log_msg(message)
             response = self.model.predict(message.content)
-            if response:
+            if self.enable_responses and response:
                 await message.channel.send(response)
 
     async def process_command(self, message):
         cmd, args = self.parser.parse_args(message.content)
-        if cmd in ["connect", "disconnect"]:
+        if cmd in ["enable", "disable"]:
+            args.update({"slf": self})
+        elif cmd in ["connect", "disconnect"]:
             args.update({"message": message})
         elif cmd == "train":
             args.update({"model": self.model})
@@ -56,6 +59,8 @@ class Bot:
 
     def log_msg(self, message):
         sanitized_msg = utils.sanitize(message.content)
+        if not sanitized_msg:
+            return
         for word in sanitized_msg.split():
             if word not in self.corpus and word not in self.append_corp:
                 utils.write_word_to_append_file(word)

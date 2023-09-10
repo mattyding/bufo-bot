@@ -26,12 +26,15 @@ def load_intents():
     intents.message_content = True
     return intents
 
+
 def init_parser():
     parser = BufoArgParser()
     parser.add_cmd("connect")
     parser.add_cmd("disconnect")
     parser.add_cmd("go away", alias_for="disconnect")
     parser.add_cmd("train")
+    parser.add_cmd("enable")
+    parser.add_cmd("disable")
 
     parser.add_arg("train", "model", type=str, required=False, default="seq2seq")
     parser.add_arg("train", "epochs", type=int, required=False, default=7)
@@ -41,6 +44,8 @@ def init_parser():
     parser.map_cmd_to_fn("connect", bufo_cmds.bufo_connect)
     parser.map_cmd_to_fn("disconnect", bufo_cmds.bufo_disconnect)
     parser.map_cmd_to_fn("train", bufo_cmds.bufo_train_model)
+    parser.map_cmd_to_fn("enable", lambda slf: setattr(slf, "enable_responses", True))
+    parser.map_cmd_to_fn("disable", lambda slf: setattr(slf, "enable_responses", False))
     return parser
 
 
@@ -75,6 +80,7 @@ def copy_corpus():
 # STRING PROCESSING FUNCTIONS
 def sanitize(message):
     return "".join([c for c in message if c.isalpha() or c in " :"]).lower()
+
 
 def remove_repeating_pattern(arr):
     for start in range(0, len(arr) // 2):
