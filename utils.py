@@ -36,14 +36,20 @@ def init_parser():
     parser.add_cmd("enable")
     parser.add_cmd("disable")
 
-    parser.add_arg("train", "model", type=str, required=False, default="seq2seq")
-    parser.add_arg("train", "epochs", type=int, required=False, default=7)
-    parser.add_arg("train", "batch_size", type=int, required=False, default=64)
-    parser.add_arg("train", "lr", type=float, required=False, default=0.001)
+    parser.add_param("train", "model", type=str, required=False, default="seq2seq")
+    parser.add_param("train", "epochs", type=int, required=False, default=7)
+    parser.add_param("train", "batch_size", type=int, required=False, default=64)
+    parser.add_param("train", "lr", type=float, required=False, default=0.001)
 
-    parser.map_cmd_to_fn("connect", bufo_cmds.bufo_connect)
-    parser.map_cmd_to_fn("disconnect", bufo_cmds.bufo_disconnect)
-    parser.map_cmd_to_fn("train", bufo_cmds.bufo_train_model)
+    parser.add_env_param("enable", "slf")
+    parser.add_env_param("disable", "slf")
+    parser.add_env_param("connect", "message")
+    parser.add_env_param("disconnect", "message")
+    parser.add_env_param("train", "model")
+
+    parser.map_cmd_to_fn("connect", bufo_cmds.bufo_connect, async_fn=True)
+    parser.map_cmd_to_fn("disconnect", bufo_cmds.bufo_disconnect, async_fn=True)
+    parser.map_cmd_to_fn("train", bufo_cmds.bufo_train_model, async_fn=True)
     parser.map_cmd_to_fn("enable", lambda slf: setattr(slf, "enable_responses", True))
     parser.map_cmd_to_fn("disable", lambda slf: setattr(slf, "enable_responses", False))
     return parser

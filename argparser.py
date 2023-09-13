@@ -1,5 +1,11 @@
-# custom argparser
+# custom paramparser
 from collections import defaultdict
+
+
+class FuncWrapper:
+    def __init__(self, fn, async_fn=False):
+        self.fn = fn
+        self.async_fn = async_fn
 
 
 class BufoArgParser:
@@ -7,7 +13,10 @@ class BufoArgParser:
         self.prefix = prefix
         self.cmd_name_id_map = {}  # cmd name/alias -> uuid mapping
         self.cmd_fn_map = {}  # cmd uuid -> fn mapping
-        self.arg_options = defaultdict(dict)  # cmd uuid -> arg name -> arg options
+        self.param_options = defaultdict(
+            dict
+        )  # cmd uuid -> param name -> param options
+        self.env_param = defaultdict(list)  # cmd uuid -> env_param name
 
     def add_cmd(self, cmd_name, alias_for=None):
         if alias_for:
@@ -17,31 +26,42 @@ class BufoArgParser:
         else:
             self.cmd_name_id_map[cmd_name] = len(self.cmd_name_id_map)
 
-    def add_arg(self, cmd_name, arg_name, type=str, required=False, default=None):
-        self.arg_options[self.cmd_name_id_map[cmd_name]][arg_name] = {
+    def add_param(self, cmd_name, param_name, type=str, required=False, default=None):
+        self.param_options[self.cmd_name_id_map[cmd_name]][param_name] = {
             "type": type,
             "required": required,
             "default": default,
         }
 
-    def map_cmd_to_fn(self, cmd_name, fn):
+    def add_env_param(self, cmd_name, env_param_name):
+        # env params are required for a function to run but not passed in by user e.g., model
+        self.env_param[self.cmd_name_id_map[cmd_name]].append(env_param_name)
+
+    def map_cmd_to_fn(self, cmd_name, fn, async_fn=False):
         if cmd_name not in self.cmd_name_id_map:
             raise ValueError(f"Command '{cmd_name}' does not exist")
-        self.cmd_fn_map[self.cmd_name_id_map[cmd_name]] = fn
+        self.cmd_fn_map[self.cmd_name_id_map[cmd_name]] = FuncWrapper(fn, async_fn)
 
-    def execute(self, cmd, args):
-        # add default args
-        for arg_name, arg_options in self.arg_options[
+    def get_env_params(self, cmd_name):
+        if cmd_name not in self.cmd_name_id_map:
+            raise ValueError(f"Command '{cmd_name}' does not exist")
+        return self.env_param[self.cmd_name_id_map[cmd_name]]
+
+    async def execute(self, cmd, params):
+        # add default params
+        for param_name, param_options in self.param_options[
             self.cmd_name_id_map[cmd]
         ].items():
-            if arg_name not in args:
-                if arg_options["required"]:
-                    raise ValueError(f"Missing required argument '{arg_name}'")
+            if param_name not in params:
+                if param_options["required"]:
+                    raise ValueError(f"Missing required paramument '{param_name}'")
                 else:
-                    args[arg_name] = arg_options["default"]
-        return self.cmd_fn_map[self.cmd_name_id_map[cmd]](**args)
+                    params[param_name] = param_options["default"]
+        if self.cmd_fn_map[self.cmd_name_id_map[cmd]].async_fn:
+            return await self.cmd_fn_map[self.cmd_name_id_map[cmd]].fn(**params)
+        return self.cmd_fn_map[self.cmd_name_id_map[cmd]].fn(**params)
 
-    def parse_args(self, input_str):
+    def parse_params(self, input_str):
         parts = input_str.split()
 
         if len(parts) < 2 or not parts[0].startswith(self.prefix):
@@ -55,41 +75,41 @@ class BufoArgParser:
         if command not in self.cmd_name_id_map:
             raise ValueError(f"Invalid command: {command}")
 
-        args = {}
+        params = {}
 
         while i < len(parts):
             if parts[i].startswith("--"):
                 try:
-                    arg_name, arg_value = parts[i][2:].split("=")
+                    param_name, param_value = parts[i][2:].split("=")
                 except:
-                    raise ValueError(f"Missing value for argument '{parts[i][2:]}'")
+                    raise ValueError(f"Missing value for paramument '{parts[i][2:]}'")
 
-                # cast arg_value to specified type
-                arg_value = self.arg_options[self.cmd_name_id_map[command]][arg_name][
-                    "type"
-                ](arg_value)
-                args[arg_name] = arg_value
+                # cast param_value to specified type
+                param_value = self.param_options[self.cmd_name_id_map[command]][
+                    param_name
+                ]["type"](param_value)
+                params[param_name] = param_value
 
             else:
-                raise ValueError(f"Invalid argument format: {parts[i]}")
+                raise ValueError(f"Invalid paramument format: {parts[i]}")
 
             i += 1
 
-        return command, args
+        return command, params
 
 
 def main():
     # run tests
-    parser = BufoArgParser()
+    parser = BufoparamParser()
     parser.add_cmd("connect")
     parser.add_cmd("disconnect")
     parser.add_cmd("go away", alias_for="disconnect")
     parser.add_cmd("train")
     parser.add_cmd("train gpt", alias_for="train")
     parser.add_cmd("train neural network", alias_for="train")
-    parser.add_arg("train", "epochs", type=int, required=False, default=7)
-    parser.add_arg("train", "batch-size", type=int, required=False, default=64)
-    parser.add_arg("train", "lr", type=float, required=False, default=0.001)
+    parser.add_param("train", "epochs", type=int, required=False, default=7)
+    parser.add_param("train", "batch-size", type=int, required=False, default=64)
+    parser.add_param("train", "lr", type=float, required=False, default=0.001)
 
     # invalid input
     str1 = ""  # empty
@@ -99,7 +119,7 @@ def main():
 
     for test_str in [str1, str2, str3, str4]:
         try:
-            parser.parse_args(test_str)
+            parser.parse_params(test_str)
             assert False
         except ValueError:
             pass
@@ -112,46 +132,46 @@ def main():
 
     for test_str in [str4, str5, str6, str7]:
         try:
-            parser.parse_args(test_str)
+            parser.parse_params(test_str)
         except ValueError:
             assert False
 
-    assert parser.parse_args(str4)[0] == "connect"
-    assert parser.parse_args(str5)[0] == "go away"
-    assert parser.parse_args(str6)[0] == "train neural network"
-    assert parser.parse_args(str7)[0] == "train gpt"
+    assert parser.parse_params(str4)[0] == "connect"
+    assert parser.parse_params(str5)[0] == "go away"
+    assert parser.parse_params(str6)[0] == "train neural network"
+    assert parser.parse_params(str7)[0] == "train gpt"
 
-    assert parser.parse_args(str4)[1] == {}
-    assert parser.parse_args(str5)[1] == {}
-    assert parser.parse_args(str6)[1] == {"epochs": 10, "batch-size": 32, "lr": 0.001}
-    assert parser.parse_args(str7)[1] == {"epochs": 10, "batch-size": 32, "lr": 0.001}
+    assert parser.parse_params(str4)[1] == {}
+    assert parser.parse_params(str5)[1] == {}
+    assert parser.parse_params(str6)[1] == {"epochs": 10, "batch-size": 32, "lr": 0.001}
+    assert parser.parse_params(str7)[1] == {"epochs": 10, "batch-size": 32, "lr": 0.001}
 
     del parser
     # test function calling
-    parser = BufoArgParser()
+    parser = BufoparamParser()
     parser.add_cmd("test")
-    parser.add_arg("test", "arg1", type=int, required=True)
-    parser.add_arg("test", "arg2", type=str, required=False, default="default")
-    parser.add_arg("test", "extra_arg1", type=str, required=False)
+    parser.add_param("test", "param1", type=int, required=True)
+    parser.add_param("test", "param2", type=str, required=False, default="default")
+    parser.add_param("test", "extra_param1", type=str, required=False)
 
-    def test_fn(arg1, arg2, extra_arg1):
-        assert arg1 == 1
-        assert arg2 == "2"
-        assert extra_arg1 == "sup3r_$ecr3t_p@ssw0rd"
+    def test_fn(param1, param2, extra_param1):
+        assert param1 == 1
+        assert param2 == "2"
+        assert extra_param1 == "sup3r_$ecr3t_p@ssw0rd"
         return "test passed"
 
     parser.map_cmd_to_fn("test", test_fn)
 
     try:
-        parser.execute(*parser.parse_args("$bufo test --arg1=1 --arg2=2"))
+        parser.execute(*parser.parse_params("$bufo test --param1=1 --param2=2"))
         assert False
     except TypeError:
         pass
 
     assert (
         parser.execute(
-            *parser.parse_args(
-                "$bufo test --arg1=1 --arg2=2 --extra_arg1=sup3r_$ecr3t_p@ssw0rd"
+            *parser.parse_params(
+                "$bufo test --param1=1 --param2=2 --extra_param1=sup3r_$ecr3t_p@ssw0rd"
             )
         )
         == "test passed"

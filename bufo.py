@@ -14,18 +14,18 @@ class Bot:
     def __init__(self):
         load_dotenv()
         self.token = os.getenv("DISCORD_TOKEN")
-        self.parser = utils.init_parser()
         self.corpus = utils.load_corpus()
         self.append_corp = set()
+        self.parser = utils.init_parser()
         self.enable_responses = True
 
         # store state of previous message for training
         self.prev_msg = ""
         self.model = BufoSeq2Seq()
 
-    def handle_ctrl_c(self, signal, frame):
-        # trigger model.__del__() to save weights
-        sys.exit(0)
+    # def handle_ctrl_c(self, signal, frame):
+    #     # trigger model.__del__() to save weights
+    #     sys.exit(0)
 
     async def on_ready(self):
         self.model = BufoSeq2Seq()
@@ -45,15 +45,16 @@ class Bot:
                 await message.channel.send(response)
 
     async def process_command(self, message):
-        cmd, args = self.parser.parse_args(message.content)
-        if cmd in ["enable", "disable"]:
-            args.update({"slf": self})
-        elif cmd in ["connect", "disconnect"]:
-            args.update({"message": message})
-        elif cmd == "train":
-            args.update({"model": self.model})
+        cmd, params = self.parser.parse_params(message.content)
+        env_params = self.parser.get_env_params(cmd)
+        if "slf" in env_params:
+            params.update({"slf": self})
+        if "message" in env_params:
+            params.update({"message": message})
+        if "model" in env_params:
+            params.update({"model": self.model})
         try:
-            await self.parser.execute(cmd, args)
+            await self.parser.execute(cmd, params)
         except ValueError as e:
             await message.channel.send(str(e))
 
