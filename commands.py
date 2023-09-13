@@ -1,7 +1,4 @@
 # File containing code for bot commands.
-from utils import DATASET_FILE
-
-import utils as utils
 
 
 async def bufo_connect(message):
@@ -19,7 +16,7 @@ async def bufo_disconnect(message):
 
 
 async def bufo_train_model(model, epochs, batch_size, lr):
-    with open(DATASET_FILE, "r") as f:
+    with open("data/dataset.txt", "r") as f:
         lines = f.readlines()
     training_pairs = []
     for line in lines:
