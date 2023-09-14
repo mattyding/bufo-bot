@@ -37,12 +37,24 @@ class Bot:
             return
         if message.content.lower().startswith("$bufo"):
             await self.process_command(message)
-        else:
+        if self.log_message(message):
             # don't log commands
             self.log_msg(message)
             response = self.model.predict(message.content)
             if self.enable_responses and response:
                 await message.channel.send(response)
+
+    def log_message(self, message):
+        blocklist = [
+            "$bufo",
+            "https://youtube.com",
+            "https://youtu.be",
+            "https://tiktok.com",
+        ]
+        for prefix in blocklist:
+            if message.content.lower().startswith(prefix):
+                return False
+        return True
 
     async def process_command(self, message):
         cmd, params = self.parser.parse_params(message.content)

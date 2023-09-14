@@ -50,8 +50,18 @@ def init_parser():
     parser.map_cmd_to_fn("connect", bufo_cmds.bufo_connect, async_fn=True)
     parser.map_cmd_to_fn("disconnect", bufo_cmds.bufo_disconnect, async_fn=True)
     parser.map_cmd_to_fn("train", bufo_cmds.bufo_train_model, async_fn=True)
-    parser.map_cmd_to_fn("enable", lambda slf: setattr(slf, "enable_responses", True))
-    parser.map_cmd_to_fn("disable", lambda slf: setattr(slf, "enable_responses", False))
+
+    def _enable(slf):
+        setattr(slf, "enable_responses", True)
+        logging.info("Message responses enabled")
+
+    def _disable(slf):
+        setattr(slf, "enable_responses", False)
+        logging.info("Message responses disabled")
+
+    parser.map_cmd_to_fn("enable", _enable)
+    parser.map_cmd_to_fn("disable", _disable)
+
     return parser
 
 
@@ -85,7 +95,7 @@ def copy_corpus():
 
 # STRING PROCESSING FUNCTIONS
 def sanitize(message):
-    return "".join([c for c in message if c.isalpha() or c in " :"]).lower()
+    return "".join([c for c in message if c.isalpha() or c in " "]).lower()
 
 
 def remove_repeating_pattern(arr):
