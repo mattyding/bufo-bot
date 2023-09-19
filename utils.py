@@ -118,15 +118,15 @@ if __name__ == "__main__":
     # sanitize() unit tests
     sanitize1 = "Hello, world!"
     sanitize2 = "Hello, world! "
-    sanitize3 = "     "
-    sanitize4 = ".<>?/;':\"[]{}\\|!@#$%^&*()_+-="
-    sanitize5 = ". . . . . . .. . "
+    sanitize3 = "  hello world   "
+    sanitize4 = ".<>?/;':\'hello}\\|!@#$%^& world'[]{}\\|!@#$%^&*()_+-="
+    sanitize5 = ". . . . hello . . .. . world .. . . .. . . . ."
 
     assert sanitize(sanitize1) == "hello world"
     assert sanitize(sanitize2) == "hello world"
-    assert sanitize(sanitize3) == ""
-    assert sanitize(sanitize4) == ""
-    assert sanitize(sanitize5) == ""
+    assert sanitize(sanitize3) == "hello world"
+    assert sanitize(sanitize4) == "hello world"
+    assert sanitize(sanitize5) == "hello world"
 
 
     # remove_repeating_pattern() unit tests
