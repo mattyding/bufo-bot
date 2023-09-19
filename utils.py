@@ -95,7 +95,8 @@ def copy_corpus():
 
 # STRING PROCESSING FUNCTIONS
 def sanitize(message):
-    return "".join([c for c in message if c.isalpha() or c in " "]).lower()
+    cleaned_str = "".join([c for c in message if c.isalpha() or c in " "]).lower()
+    return " ".join(cleaned_str.split()) # removes instances of multiple spaces
 
 
 def remove_repeating_pattern(arr):
@@ -114,19 +115,34 @@ def remove_repeating_pattern(arr):
 
 
 if __name__ == "__main__":
-    # run tests
-    arr1 = [1, 2, 3, 4, 5, 4, 5, 4, 5, 4, 5, 4]
-    arr2 = [1, 2, 2, 2, 2, 2, 2, 2, 2]
-    arr3 = [1, 2, 3, 1, 2, 3, 1, 2, 3]
-    arr4 = [1, 2, 3, 2, 3, 2, 3]
-    arr5 = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    arr6 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 1]
-    arr7 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2]
+    # sanitize() unit tests
+    sanitize1 = "Hello, world!"
+    sanitize2 = "Hello, world! "
+    sanitize3 = "     "
+    sanitize4 = ".<>?/;':\"[]{}\\|!@#$%^&*()_+-="
+    sanitize5 = ". . . . . . .. . "
 
-    assert remove_repeating_pattern(arr1) == [1, 2, 3, 4, 5]
-    assert remove_repeating_pattern(arr2) == [1, 2]
-    assert remove_repeating_pattern(arr3) == [1, 2, 3]
-    assert remove_repeating_pattern(arr4) == [1, 2, 3]
-    assert remove_repeating_pattern(arr5) == [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    assert remove_repeating_pattern(arr6) == [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    assert remove_repeating_pattern(arr7) == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert sanitize(sanitize1) == "hello world"
+    assert sanitize(sanitize2) == "hello world"
+    assert sanitize(sanitize3) == ""
+    assert sanitize(sanitize4) == ""
+    assert sanitize(sanitize5) == ""
+
+
+    # remove_repeating_pattern() unit tests
+    rrp1 = [1, 2, 3, 4, 5, 4, 5, 4, 5, 4, 5, 4]
+    rrp2 = [1, 2, 2, 2, 2, 2, 2, 2, 2]
+    rrp3 = [1, 2, 3, 1, 2, 3, 1, 2, 3]
+    rrp4 = [1, 2, 3, 2, 3, 2, 3]
+    rrp5 = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    rrp6 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 1]
+    rrp7 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2]
+
+    assert remove_repeating_pattern(rrp1) == [1, 2, 3, 4, 5]
+    assert remove_repeating_pattern(rrp2) == [1, 2]
+    assert remove_repeating_pattern(rrp3) == [1, 2, 3]
+    assert remove_repeating_pattern(rrp4) == [1, 2, 3]
+    assert remove_repeating_pattern(rrp5) == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert remove_repeating_pattern(rrp6) == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert remove_repeating_pattern(rrp7) == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    print("All unit tests passed!")
