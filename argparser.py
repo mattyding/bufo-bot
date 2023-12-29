@@ -54,7 +54,7 @@ class BufoArgParser:
         ].items():
             if param_name not in params:
                 if param_options["required"]:
-                    raise ValueError(f"Missing required paramument '{param_name}'")
+                    raise ValueError(f"Missing required parameter '{param_name}'")
                 else:
                     params[param_name] = param_options["default"]
         if self.cmd_fn_map[self.cmd_name_id_map[cmd]].async_fn:

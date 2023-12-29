@@ -68,7 +68,9 @@ class Bot:
         try:
             await self.parser.execute(cmd, params)
         except ValueError as e:
-            await message.channel.send(str(e))
+            await message.channel.send(
+                f"Error encountered in command {cmd}:\n\t{str(e)}"
+            )
 
     def log_msg(self, message):
         sanitized_msg = utils.sanitize(message.content)
@@ -89,7 +91,8 @@ class Bot:
             bot.add_listener(self.on_message)
             bot.run(self.token)
         except KeyboardInterrupt:
-            pass
+            logging.info("Received SIGINT, exiting...")
+            sys.exit(0)
 
 
 if __name__ == "__main__":
