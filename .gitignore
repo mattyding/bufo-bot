@@ -155,6 +155,9 @@ cython_debug/
 data/
 venv/
 
+persona/**
+!persona/_default/
+!persona/persona_to_id.json
 
 # General
 .DS_Store
