@@ -32,24 +32,22 @@ def init_parser():
     parser.add_cmd("connect")
     parser.add_cmd("disconnect")
     parser.add_cmd("go away", alias_for="disconnect")
-    parser.add_cmd("train")
     parser.add_cmd("enable")
     parser.add_cmd("disable")
+    parser.add_cmd("mode")
 
-    parser.add_param("train", "model", type=str, required=False, default="seq2seq")
-    parser.add_param("train", "epochs", type=int, required=False, default=7)
-    parser.add_param("train", "batch_size", type=int, required=False, default=64)
-    parser.add_param("train", "lr", type=float, required=False, default=0.001)
+    parser.add_cmd("mather")
+    parser.add_cmd("junpeng")
+    parser.add_cmd("default")
 
     parser.add_env_param("enable", "slf")
     parser.add_env_param("disable", "slf")
     parser.add_env_param("connect", "message")
     parser.add_env_param("disconnect", "message")
-    parser.add_env_param("train", "model")
+
 
     parser.map_cmd_to_fn("connect", bufo_cmds.bufo_connect, async_fn=True)
     parser.map_cmd_to_fn("disconnect", bufo_cmds.bufo_disconnect, async_fn=True)
-    parser.map_cmd_to_fn("train", bufo_cmds.bufo_train_model, async_fn=True)
 
     def _enable(slf):
         setattr(slf, "enable_responses", True)
@@ -62,6 +60,14 @@ def init_parser():
     parser.map_cmd_to_fn("enable", _enable)
     parser.map_cmd_to_fn("disable", _disable)
 
+    def _set_mode_factory(mode):
+        # lambda function that takes in slf arg and sets "mode" to mode in slf
+        return lambda slf: setattr(slf, "mode", mode)
+    
+    parser.add_env_param("default", "slf")
+
+    parser.map_cmd_to_fn("default", _set_mode_factory("default"))
+    
     return parser
 
 

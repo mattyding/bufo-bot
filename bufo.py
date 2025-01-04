@@ -1,60 +1,41 @@
 import logging
 import os
 import sys
+import json
+import random
+
+from typing import Optional
 
 from discord.ext import commands
 from dotenv import load_dotenv
 
-import commands as bufo_cmds
 import utils as utils
-from seq2seq import BufoSeq2Seq
 
 
 class Bot:
     def __init__(self):
         load_dotenv()
         self.token = os.getenv("DISCORD_TOKEN")
-        self.corpus = utils.load_corpus()
-        self.append_corp = set()
         self.parser = utils.init_parser()
+        self.mode = "default"
         self.enable_responses = True
 
-        # store state of previous message for training
-        self.prev_msg = ""
-        self.model = BufoSeq2Seq()
-
-    # def handle_ctrl_c(self, signal, frame):
-    #     # trigger model.__del__() to save weights
-    #     sys.exit(0)
-
     async def on_ready(self):
-        self.model = BufoSeq2Seq()
+        self.tt_random_response = 0
         logging.info(f"Bufo buddy has connected to Discord!")
 
     async def on_message(self, message):
         # discard all messages from bots
+        logging.info(f"Received message: {message.content}")
         if message.author.bot:
             return
         if message.content.lower().startswith("$bufo"):
             await self.process_command(message)
-        if self.log_message(message):
-            # don't log commands
-            self.log_msg(message)
-            response = self.model.predict(message.content)
-            if self.enable_responses and response:
-                await message.channel.send(response)
-
-    def log_message(self, message):
-        blocklist = [
-            "$bufo",
-            "https://youtube.com",
-            "https://youtu.be",
-            "https://tiktok.com",
-        ]
-        for prefix in blocklist:
-            if message.content.lower().startswith(prefix):
-                return False
-        return True
+            
+        response = await self.maybe_respond(message)
+        if response is not None:
+            logging.info("Response: " + response)
+            await message.channel.send(response)
 
     async def process_command(self, message):
         cmd, params = self.parser.parse_params(message.content)
@@ -63,8 +44,6 @@ class Bot:
             params.update({"slf": self})
         if "message" in env_params:
             params.update({"message": message})
-        if "model" in env_params:
-            params.update({"model": self.model})
         try:
             await self.parser.execute(cmd, params)
         except ValueError as e:
@@ -72,17 +51,41 @@ class Bot:
                 f"Error encountered in command {cmd}:\n\t{str(e)}"
             )
 
-    def log_msg(self, message):
-        sanitized_msg = utils.sanitize(message.content)
-        if not sanitized_msg:
+    async def maybe_respond(self, message) -> Optional[str]:
+        """
+        If mode is set, generates response using files in mode directory.
+        - mode/ directory contains (optional) prefix.jsonl and (required) response.txt files
+        - prefix jsonl maps prefix strings to a list of responses for that prefix. One prefix per line
+        - response.txt contains one response per line
+        """
+        if not self.enable_responses:
             return
-        for word in sanitized_msg.split():
-            if word not in self.corpus and word not in self.append_corp:
-                utils.write_word_to_append_file(word)
-                self.append_corp.add(word)
-        if self.prev_msg != "":
-            utils.write_training_example(self.prev_msg, sanitized_msg)
-        self.prev_msg = sanitized_msg
+        
+        # if prefix match, always respond
+        prefix_file = os.path.join("persona", self.mode, "prefix.jsonl")
+        if os.path.exists(prefix_file):
+            with open(prefix_file) as f:
+                for line in f:
+                    prefix_data = json.loads(line)
+                    for prefix, responses in prefix_data.items():
+                        if message.content.lower().startswith(prefix.lower()):
+                            response = random.choice(responses)
+                            return response
+                        
+        # otherwise, wait for TTL to respond
+        if self.tt_random_response > 0:
+            self.tt_random_response -= 1
+            return
+        self.tt_random_response = random.randint(0, 2)
+
+        response_file = os.path.join("persona", self.mode, "response.txt")
+            
+        with open(response_file) as f:
+            responses = f.readlines()
+        
+        if responses:
+            response = random.choice(responses).strip()
+            return response
 
     def run(self):
         try:
