@@ -1,0 +1,2 @@
+## Usage
+Message logs are automatically generated as bufo-bot monitors the chat. The logs are stored under persona/<user_id>/msg_log.txt. To use, you need to map a nickname to the user_id in the persona_to_id.json file. This will enable you to simulate the user by calling $bufo persona <nickname>.

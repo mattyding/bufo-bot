@@ -158,6 +158,7 @@ venv/
 persona/**
 !persona/_default/
 !persona/persona_to_id.json
+!persona/README.md
 
 # General
 .DS_Store
