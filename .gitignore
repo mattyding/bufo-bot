@@ -156,7 +156,7 @@ data/
 venv/
 
 persona/**
-!persona/_default/
+!persona/_default**
 !persona/persona_to_id.json
 !persona/README.md
 
